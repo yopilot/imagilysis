@@ -9,37 +9,7 @@ This script automatically sets up the complete environment for the Enhanced Visu
 3. Downloads and caches all AI models for optimal performance
 4. Verifies GPU availability and sets up acceleration
 5. Creates necessary directories and configuration files
-6. Tests the complete setu            if cache_result.returncode == 0:
-                self.log("✅ All models downloaded and cached successfully")
-                self.log("🚀 Models will load instantly on first use!")
-            else:
-                self.log("⚠️  Some models may download on first use", "WARNING")
-                if cache_result.stderr:
-                    self.log(f"Model download details: {cache_result.stderr[:200]}...", "DEBUG")
-            
-            # Cleanup cache script
-            try:
-                cache_file.unlink(missing_ok=True)
-            except:
-                pass  # Ignore cleanup errors
-            
-            return True
-            
-        except subprocess.TimeoutExpired:
-            self.log("⚠️  Model download timeout - models will download on first use", "WARNING")
-            try:
-                cache_file.unlink(missing_ok=True)
-            except:
-                pass
-            return True
-        except Exception as e:
-            self.log(f"⚠️  Model caching issue: {e}", "WARNING")
-            self.log("Models will download automatically on first use", "INFO")
-            try:
-                cache_file.unlink(missing_ok=True)
-            except:
-                pass
-            return Truehing works perfectly
+6. Tests the complete setup to ensure everything works perfectly
 
 Run this script once before first use for optimal performance.
 """
@@ -55,70 +25,13 @@ import time
 import urllib.request
 from typing import List, Tuple, Dict
 
-# Try to import tqdm for progress bars, fallback if not available
-try:
-    from tqdm import tqdm
-    TQDM_AVAILABLE = True
-except ImportError:
-    TQDM_AVAILABLE = False
-    # Fallback progress bar implementation
-    class tqdm:
-        def __init__(self, *args, **kwargs):
-            self.total = kwargs.get('total', 100)
-            self.desc = kwargs.get('desc', '')
-            self.current = 0
-            print(f"Starting: {self.desc}")
-        
-        def update(self, n=1):
-            self.current += n
-            if self.total:
-                percent = (self.current / self.total) * 100
-                print(f"\r{self.desc}: {percent:.1f}% ({self.current}/{self.total})", end='', flush=True)
-        
-        def close(self):
-            print()  # New line after progress
-        
-        def __enter__(self):
-            return self
-        
-        def __exit__(self, *args):
-            self.close()
-
 class EnhancedSetup:
-    def __init__(self, skip_models=False):
+    def __init__(self):
         self.project_root = Path(__file__).parent.absolute()
         self.venv_path = self.project_root / ".venv"
         self.is_windows = platform.system() == "Windows"
         self.python_executable = self._get_python_executable()
         self.setup_log = []
-        self.total_steps = 7  # Total number of setup steps
-        self.current_step = 0
-        self.skip_models = skip_models
-        
-        # Try to install tqdm if not available
-        if not TQDM_AVAILABLE:
-            self._try_install_tqdm()
-        # Try to install tqdm if not available
-        if not TQDM_AVAILABLE:
-            self._try_install_tqdm()
-        
-    def _try_install_tqdm(self):
-        """Try to install tqdm for better progress bars"""
-        try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "tqdm"], 
-                         capture_output=True, check=True)
-            global TQDM_AVAILABLE, tqdm
-            from tqdm import tqdm as real_tqdm
-            tqdm = real_tqdm
-            TQDM_AVAILABLE = True
-        except:
-            pass  # Use fallback implementation
-    
-    def _update_overall_progress(self, step_name: str):
-        """Update overall setup progress"""
-        self.current_step += 1
-        progress = (self.current_step / self.total_steps) * 100
-        print(f"\n📊 Overall Progress: {progress:.1f}% ({self.current_step}/{self.total_steps}) - {step_name}")
         
     def log(self, message: str, level: str = "INFO"):
         """Log setup progress with timestamps"""
@@ -178,55 +91,38 @@ class EnhancedSetup:
         return True
     
     def create_virtual_environment(self) -> bool:
-        """Create or update Python virtual environment"""
-        self.log("🐍 Setting up Python virtual environment...")
+        """Create Python virtual environment"""
+        self.log("🐍 Creating Python virtual environment...")
         
         try:
-            venv_exists = self.venv_path.exists()
+            if self.venv_path.exists():
+                self.log("📁 Removing existing virtual environment...")
+                shutil.rmtree(self.venv_path)
             
-            if venv_exists:
-                self.log("📁 Virtual environment already exists - updating instead of removing...")
-                # Check if virtual environment is functional
-                if self._check_venv_functional():
-                    self.log("✅ Existing virtual environment is functional")
-                else:
-                    self.log("⚠️  Virtual environment appears corrupted, recreating...", "WARNING")
-                    shutil.rmtree(self.venv_path)
-                    venv_exists = False
+            # Create virtual environment
+            result = subprocess.run([
+                sys.executable, "-m", "venv", str(self.venv_path)
+            ], capture_output=True, text=True, check=True)
             
-            if not venv_exists:
-                # Create virtual environment
-                self.log("🔨 Creating new virtual environment...")
-                with tqdm(total=3, desc="Creating virtual environment") as pbar:
-                    result = subprocess.run([
-                        sys.executable, "-m", "venv", str(self.venv_path)
-                    ], capture_output=True, text=True, check=True)
-                    pbar.update(1)
-                    
-                    self.log("✅ Virtual environment created successfully")
-                    pbar.update(1)
+            self.log("✅ Virtual environment created successfully")
+            
+            # Upgrade pip to latest version
+            self.log("📦 Upgrading pip to latest version...")
+            pip_upgrade = subprocess.run([
+                self.python_executable, "-m", "pip", "install", "--upgrade", "pip"
+            ], capture_output=True, text=True)
+            
+            if pip_upgrade.returncode == 0:
+                self.log("✅ Pip upgraded successfully")
+            else:
+                self.log(f"⚠️  Pip upgrade warning: {pip_upgrade.stderr}", "WARNING")
             
             return True
             
         except subprocess.CalledProcessError as e:
-            self.log(f"❌ Failed to setup virtual environment: {e}", "ERROR")
+            self.log(f"❌ Failed to create virtual environment: {e}", "ERROR")
             if e.stderr:
                 self.log(f"Error details: {e.stderr}", "ERROR")
-            return False
-    
-    def _check_venv_functional(self) -> bool:
-        """Check if the existing virtual environment is functional"""
-        try:
-            # Test if Python executable exists and works
-            if not Path(self.python_executable).exists():
-                return False
-            
-            result = subprocess.run([
-                self.python_executable, "--version"
-            ], capture_output=True, text=True, timeout=10)
-            
-            return result.returncode == 0
-        except:
             return False
     
     def _check_pytorch_installed(self) -> bool:
@@ -268,10 +164,7 @@ class EnhancedSetup:
                 "torch", "torchvision", "torchaudio"
             ]
             
-            with tqdm(total=1, desc="Installing PyTorch with GPU support") as pbar:
-                torch_result = subprocess.run(torch_cmd, capture_output=True, text=True)
-                pbar.update(1)
-                
+            torch_result = subprocess.run(torch_cmd, capture_output=True, text=True)
             if torch_result.returncode == 0:
                 self.log("✅ PyTorch with GPU support installed")
                 return True
@@ -284,10 +177,7 @@ class EnhancedSetup:
             "https://download.pytorch.org/whl/cpu"
         ]
         
-        with tqdm(total=1, desc="Installing PyTorch CPU version") as pbar:
-            cpu_result = subprocess.run(cpu_torch_cmd, capture_output=True, text=True)
-            pbar.update(1)
-            
+        cpu_result = subprocess.run(cpu_torch_cmd, capture_output=True, text=True)
         if cpu_result.returncode == 0:
             self.log("✅ PyTorch CPU version installed")
             return True
@@ -311,7 +201,7 @@ class EnhancedSetup:
         return None
 
     def install_dependencies(self) -> bool:
-        """Install all required Python packages with smart detection and progress tracking"""
+        """Install all required Python packages with smart detection"""
         self.log("📦 Installing Python dependencies...")
         
         try:
@@ -334,15 +224,12 @@ class EnhancedSetup:
                     self._install_missing_requirements(requirements_file)
                 else:
                     self.log("📋 Installing requirements from requirements.txt...")
-                    with tqdm(total=1, desc="Installing dependencies from requirements.txt") as pbar:
-                        install_cmd = [
-                            self.python_executable, "-m", "pip", "install", 
-                            "-r", str(requirements_file)
-                        ]
-                        
-                        result = subprocess.run(install_cmd, capture_output=True, text=True, check=True)
-                        pbar.update(1)
-                        
+                    install_cmd = [
+                        self.python_executable, "-m", "pip", "install", 
+                        "-r", str(requirements_file)
+                    ]
+                    
+                    result = subprocess.run(install_cmd, capture_output=True, text=True, check=True)
                     self.log("✅ All dependencies installed successfully")
             else:
                 self.log("⚠️  requirements.txt not found, installing core packages manually", "WARNING")
@@ -385,7 +272,7 @@ class EnhancedSetup:
             return False
     
     def _install_missing_requirements(self, requirements_file: Path):
-        """Install only missing requirements with progress tracking"""
+        """Install only missing requirements"""
         try:
             # Use pip check to see what's missing
             check_cmd = [
@@ -396,29 +283,25 @@ class EnhancedSetup:
             
             if check_result.returncode != 0:
                 self.log("Installing missing/outdated packages...")
-                with tqdm(total=1, desc="Installing missing packages") as pbar:
-                    install_cmd = [
-                        self.python_executable, "-m", "pip", "install", 
-                        "-r", str(requirements_file), "--upgrade"
-                    ]
-                    subprocess.run(install_cmd, capture_output=True, text=True)
-                    pbar.update(1)
+                install_cmd = [
+                    self.python_executable, "-m", "pip", "install", 
+                    "-r", str(requirements_file), "--upgrade"
+                ]
+                subprocess.run(install_cmd, capture_output=True, text=True)
                 self.log("✅ Missing packages installed")
             else:
                 self.log("✅ All requirements satisfied")
                 
         except:
             self.log("Installing requirements normally...")
-            with tqdm(total=1, desc="Installing requirements") as pbar:
-                install_cmd = [
-                    self.python_executable, "-m", "pip", "install", 
-                    "-r", str(requirements_file)
-                ]
-                subprocess.run(install_cmd, capture_output=True, text=True)
-                pbar.update(1)
+            install_cmd = [
+                self.python_executable, "-m", "pip", "install", 
+                "-r", str(requirements_file)
+            ]
+            subprocess.run(install_cmd, capture_output=True, text=True)
     
     def _install_core_packages(self):
-        """Install core packages manually if requirements.txt is missing with progress tracking"""
+        """Install core packages manually if requirements.txt is missing"""
         core_packages = [
             "fastapi>=0.104.0",
             "uvicorn[standard]>=0.24.0", 
@@ -442,13 +325,11 @@ class EnhancedSetup:
             "accelerate>=0.24.0"
         ]
         
-        with tqdm(total=len(core_packages), desc="Installing core packages") as pbar:
-            for package in core_packages:
-                self.log(f"Installing {package}...")
-                subprocess.run([
-                    self.python_executable, "-m", "pip", "install", package
-                ], capture_output=True, text=True, check=True)
-                pbar.update(1)
+        for package in core_packages:
+            self.log(f"Installing {package}...")
+            subprocess.run([
+                self.python_executable, "-m", "pip", "install", package
+            ], capture_output=True, text=True, check=True)
     
     def download_and_cache_models(self) -> bool:
         """Download and cache all AI models for optimal performance - skip if already cached"""
@@ -463,81 +344,39 @@ class EnhancedSetup:
             self.log("✅ AI models already cached, skipping download...")
             return True
         
-        # Skip model download if requested
-        if self.skip_models:
-            self.log("⏭️  Skipping model download as requested - models will download on first use")
-            return True
-        
-        # Ask user if they want to download models now or skip
-        self.log("📥 AI models not found in cache.")
-        print("\n🤖 Model Download Options:")
-        print("1. Download models now (recommended for optimal performance)")
-        print("2. Skip download (models will download on first use)")
-        
-        try:
-            choice = input("\nChoose option (1 or 2): ").strip()
-            if choice == "2":
-                self.log("⏭️  Skipping model download - models will download on first use")
-                return True
-        except:
-            pass  # Continue with download if input fails
-        
         self.log("📥 Downloading AI models (first time only)...")
         
         try:
             # Create a simple model check script
+            project_path = str(self.project_root).replace('\\', '/')
             cache_script = f'''
 import sys
 sys.path.append(r"{self.project_root}")
 import os
-import time
 os.environ["TRANSFORMERS_VERBOSITY"] = "error"
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
-
-def download_with_progress(model_name, model_type="pipeline"):
-    """Download model with progress feedback"""
-    try:
-        print(f"📥 Starting download: {{model_name}}")
-        start_time = time.time()
-        
-        if model_type == "pipeline":
-            from transformers import pipeline
-            import torch
-            device = 0 if torch.cuda.is_available() else -1
-            model = pipeline("text-classification", model=model_name, device=device)
-        elif model_type == "detr":
-            from transformers import DetrImageProcessor, DetrForObjectDetection
-            processor = DetrImageProcessor.from_pretrained(model_name)
-            model = DetrForObjectDetection.from_pretrained(model_name)
-        
-        elapsed = time.time() - start_time
-        print(f"✅ Downloaded {{model_name}} in {{elapsed:.1f}}s")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error downloading {{model_name}}: {{e}}")
-        return False
 
 try:
-    print("🔄 Starting AI model downloads...")
+    print("Testing model imports...")
+    from transformers import pipeline
+    import torch
     
-    # Download emotion model
-    success1 = download_with_progress("j-hartmann/emotion-english-distilroberta-base", "pipeline")
+    # Test basic model loading
+    device = 0 if torch.cuda.is_available() else -1
+    emotion_model = pipeline("text-classification", 
+                           model="j-hartmann/emotion-english-distilroberta-base",
+                           device=device)
+    print("Emotion model: OK")
     
-    # Download object detection model  
-    success2 = download_with_progress("facebook/detr-resnet-50", "detr")
+    from transformers import DetrImageProcessor, DetrForObjectDetection
+    processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
+    detr_model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
+    print("Object detection model: OK")
     
-    if success1 and success2:
-        print("🎉 All models cached successfully!")
-        sys.exit(0)
-    else:
-        print("⚠️  Some models failed to download but will be available on first use")
-        sys.exit(0)  # Don't fail the setup for model download issues
-        
+    print("All models cached successfully!")
+    
 except Exception as e:
-    print(f"❌ Model caching error: {{e}}")
-    print("📝 Models will download automatically on first use")
-    sys.exit(0)  # Don't fail the setup
+    print(f"Model caching issue: {{e}}")
+    print("Models will download on first use")
 '''
             
             # Write and execute caching script
@@ -546,73 +385,18 @@ except Exception as e:
                 f.write(cache_script)
             
             self.log("📥 Starting model downloads (may take 5-10 minutes)...")
-            
-            # Show progress for model download with real-time monitoring
-            process = subprocess.Popen([
+            cache_result = subprocess.run([
                 self.python_executable, str(cache_file)
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            
-            # Monitor the process with a more realistic progress approach
-            self.log("⏳ Model download in progress (this may take several minutes)...")
-            
-            # Wait for process completion with periodic updates
-            start_time = time.time()
-            timeout = 600  # Reduce to 10 minutes
-            
-            while process.poll() is None:
-                elapsed = time.time() - start_time
-                if elapsed > timeout:
-                    self.log("⚠️  Model download taking too long, terminating...", "WARNING")
-                    process.terminate()
-                    time.sleep(3)  # Give process time to terminate
-                    if process.poll() is None:
-                        process.kill()  # Force kill if still running
-                    break
-                
-                # Show periodic progress updates
-                if int(elapsed) % 60 == 0 and elapsed > 0:  # Every minute
-                    self.log(f"📥 Download still in progress... (elapsed: {elapsed/60:.1f} minutes)")
-                
-                time.sleep(5)  # Check every 5 seconds instead of 1
-            
-            # Get final result with timeout
-            try:
-                if process.poll() is not None:
-                    stdout, stderr = process.communicate(timeout=10)
-                    cache_result = type('Result', (), {
-                        'returncode': process.returncode, 
-                        'stdout': stdout, 
-                        'stderr': stderr
-                    })()
-                else:
-                    cache_result = type('Result', (), {
-                        'returncode': -1, 
-                        'stdout': '', 
-                        'stderr': 'Process terminated due to timeout'
-                    })()
-            except subprocess.TimeoutExpired:
-                process.kill()
-                cache_result = type('Result', (), {
-                    'returncode': -1, 
-                    'stdout': '', 
-                    'stderr': 'Process killed - communication timeout'
-                })()
-            
-            self.log("✅ Model download process completed")
+            ], capture_output=True, text=True, timeout=1200)  # 20 min timeout
             
             if cache_result.returncode == 0:
                 self.log("✅ All models downloaded and cached successfully")
                 self.log("🚀 Models will load instantly on first use!")
             else:
                 self.log("⚠️  Some models may download on first use", "WARNING")
-                if hasattr(cache_result, 'stderr') and cache_result.stderr:
-                    self.log(f"Download info: {cache_result.stderr[:200]}...", "DEBUG")
             
             # Cleanup cache script
-            try:
-                cache_file.unlink(missing_ok=True)
-            except Exception:
-                pass  # Ignore cleanup errors
+            cache_file.unlink(missing_ok=True)
             
             return True
             
@@ -889,18 +673,17 @@ print("Enhanced Visual Persona Generator is ready to use!")
         print("\n" + "="*60)
     
     def run_complete_setup(self) -> bool:
-        """Run the complete setup process with progress tracking"""
+        """Run the complete setup process"""
         print("🚀 Enhanced Visual Persona Generator - Automated Setup")
         print("=" * 55)
         print("This will set up everything needed for optimal performance:")
-        print("• Python virtual environment (preserves existing)")
+        print("• Python virtual environment")
         print("• All dependencies with GPU support")  
         print("• AI model downloads and caching")
         print("• Directory structure and configuration")
         print("• Complete functionality testing")
         print("\n⏱️  Estimated time: 5-15 minutes (depending on internet speed)")
         print("💾 Disk space needed: ~5GB for models and dependencies")
-        print("📊 Progress bars will show installation progress")
         
         # Confirm before proceeding
         if not input("\n▶️  Continue with setup? (y/N): ").lower().startswith('y'):
@@ -909,7 +692,7 @@ print("Enhanced Visual Persona Generator is ready to use!")
         
         print("\n🔄 Starting automated setup...\n")
         
-        # Run setup steps with progress tracking
+        # Run setup steps
         steps = [
             ("System Requirements", self.check_system_requirements),
             ("Virtual Environment", self.create_virtual_environment), 
@@ -921,84 +704,16 @@ print("Enhanced Visual Persona Generator is ready to use!")
         ]
         
         success_count = 0
-        
-        # Overall progress tracking
-        with tqdm(total=len(steps), desc="Overall Setup Progress", position=0) as overall_pbar:
-            for step_name, step_func in steps:
-                self._update_overall_progress(step_name)
-                self.log(f"\n{'='*20} {step_name} {'='*20}")
-                
-                try:
-                    if step_func():
-                        success_count += 1
-                        self.log(f"✅ {step_name} completed successfully")
-                    else:
-                        self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
-                except Exception as e:
-                    self.log(f"❌ {step_name} failed: {e}", "ERROR")
-                
-                overall_pbar.update(1)
-                time.sleep(0.5)  # Brief pause for visual feedback
-        
-        # Save setup log
-        self.save_setup_log()
-        
-        # Show results
-        if success_count >= len(steps) - 1:  # Allow 1 failure
-            self.log("\n🎉 Setup completed successfully!")
-            self.print_next_steps()
-            return True
-        else:
-            self.log(f"\n⚠️  Setup completed with issues ({success_count}/{len(steps)} steps successful)", "WARNING")
-            self.log("Check setup_log.txt for details")
-            return False
-    
-    def run_automated_setup(self) -> bool:
-        """Run setup without user prompts (non-interactive mode)"""
-        print("🚀 Enhanced Visual Persona Generator - Automated Setup")
-        print("=" * 55)
-        print("Running in non-interactive mode...")
-        print("• Python virtual environment (preserves existing)")
-        print("• All dependencies with GPU support")  
-        print("• Directory structure and configuration")
-        print("• Complete functionality testing")
-        if self.skip_models:
-            print("• AI models: SKIPPED (will download on first use)")
-        else:
-            print("• AI models: Will attempt download")
-        
-        print("\n🔄 Starting automated setup...\n")
-        
-        # Run setup steps with progress tracking
-        steps = [
-            ("System Requirements", self.check_system_requirements),
-            ("Virtual Environment", self.create_virtual_environment), 
-            ("Dependencies", self.install_dependencies),
-            ("AI Models", self.download_and_cache_models),
-            ("Configuration", self.setup_directories_and_config),
-            ("GPU Setup", lambda: self.verify_gpu_setup() is not None),
-            ("Final Testing", self.test_complete_setup)
-        ]
-        
-        success_count = 0
-        
-        # Overall progress tracking
-        with tqdm(total=len(steps), desc="Overall Setup Progress", position=0) as overall_pbar:
-            for step_name, step_func in steps:
-                self._update_overall_progress(step_name)
-                self.log(f"\n{'='*20} {step_name} {'='*20}")
-                
-                try:
-                    if step_func():
-                        success_count += 1
-                        self.log(f"✅ {step_name} completed successfully")
-                    else:
-                        self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
-                except Exception as e:
-                    self.log(f"❌ {step_name} failed: {e}", "ERROR")
-                
-                overall_pbar.update(1)
-                time.sleep(0.2)  # Brief pause for visual feedback
+        for step_name, step_func in steps:
+            self.log(f"\n{'='*20} {step_name} {'='*20}")
+            try:
+                if step_func():
+                    success_count += 1
+                    self.log(f"✅ {step_name} completed successfully")
+                else:
+                    self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
+            except Exception as e:
+                self.log(f"❌ {step_name} failed: {e}", "ERROR")
         
         # Save setup log
         self.save_setup_log()
@@ -1015,17 +730,6 @@ print("Enhanced Visual Persona Generator is ready to use!")
 
 def main():
     """Main setup function"""
-    import argparse
-    
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Enhanced Visual Persona Generator Setup')
-    parser.add_argument('--skip-models', action='store_true', 
-                       help='Skip model downloads during setup')
-    parser.add_argument('--non-interactive', action='store_true',
-                       help='Run setup without user prompts')
-    
-    args = parser.parse_args()
-    
     # Set UTF-8 encoding for Windows
     import locale
     import codecs
@@ -1042,15 +746,8 @@ def main():
                 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     
     try:
-        setup = EnhancedSetup(skip_models=args.skip_models)
-        
-        if args.non_interactive:
-            # Skip the confirmation prompt in non-interactive mode
-            print("🚀 Running automated setup in non-interactive mode...")
-            success = setup.run_automated_setup()
-        else:
-            success = setup.run_complete_setup()
-            
+        setup = EnhancedSetup()
+        success = setup.run_complete_setup()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\n\nSetup interrupted by user")
