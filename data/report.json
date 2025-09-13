@@ -1,0 +1,207 @@
+[
+    {
+        "color_analysis": {
+            "dominant_colors": [
+                [
+                    82,
+                    60,
+                    48
+                ],
+                [
+                    28,
+                    23,
+                    23
+                ],
+                [
+                    160,
+                    144,
+                    137
+                ],
+                [
+                    117,
+                    92,
+                    77
+                ],
+                [
+                    190,
+                    205,
+                    204
+                ]
+            ],
+            "mood": "happy",
+            "personality_traits": [
+                "optimistic",
+                "friendly"
+            ],
+            "palette_visual": "data\\palette.png"
+        },
+        "facial_emotion": {
+            "emotion_distribution": {
+                "happiness": 0.16000000000000003,
+                "sadness": 0.18666666666666668,
+                "fear": 0.09333333333333334,
+                "anger": 0.0,
+                "disgust": 0.0,
+                "surprise": 0.05333333333333336,
+                "neutral": 0.5066666666666667
+            },
+            "emotion_spectrum": {
+                "positivity_score": 0.477,
+                "negativity_score": 0.523,
+                "enthusiasm_score": 0.528,
+                "emotional_intensity": 0.493,
+                "dominant_emotion": "neutral",
+                "core_emotions": {
+                    "happiness": 0.16,
+                    "sadness": 0.187,
+                    "fear": 0.093,
+                    "anger": 0.0,
+                    "disgust": 0.0,
+                    "surprise": 0.053
+                },
+                "combined_positivity": 0.53,
+                "context_enhanced_positivity": 0.53,
+                "scene_influence_weight": 0.425,
+                "correlation_strength": 0.75
+            },
+            "number_of_faces": 6,
+            "social_dynamics": {
+                "social_setting": "large_group",
+                "group_harmony": 0.057,
+                "social_confidence": 0.379,
+                "social_energy": 0.213
+            },
+            "face_quality_score": 0.8,
+            "analysis_confidence": 0.394,
+            "individual_faces": [
+                {
+                    "sadness": 0.4,
+                    "neutral": 0.4,
+                    "fear": 0.2,
+                    "happiness": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0,
+                    "surprise": 0.0
+                },
+                {
+                    "sadness": 0.4,
+                    "neutral": 0.4,
+                    "fear": 0.2,
+                    "happiness": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0,
+                    "surprise": 0.0
+                },
+                {
+                    "sadness": 0.4,
+                    "neutral": 0.4,
+                    "fear": 0.2,
+                    "happiness": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0,
+                    "surprise": 0.0
+                },
+                {
+                    "neutral": 0.6,
+                    "happiness": 0.3,
+                    "surprise": 0.1,
+                    "sadness": 0.0,
+                    "fear": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0
+                },
+                {
+                    "neutral": 0.6,
+                    "happiness": 0.3,
+                    "surprise": 0.1,
+                    "sadness": 0.0,
+                    "fear": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0
+                },
+                {
+                    "neutral": 0.6,
+                    "happiness": 0.3,
+                    "surprise": 0.1,
+                    "sadness": 0.0,
+                    "fear": 0.0,
+                    "anger": 0.0,
+                    "disgust": 0.0
+                }
+            ],
+            "gemini_correlation": {
+                "CORRELATION_SCORE": 75,
+                "CONTEXT_EXPLANATION": "```json\n{\n  \"CORRELATION_SCORE\": 65,\n  \"CONTEXT_EXPLANATION\": \"The scene analysis suggests a peaceful, hopeful, and romantic atmosphere, aligning well with sunrise/sunset or nature. The facial emotion...",
+                "ENHANCED_INTERPRETATION": "Detailed analysis available in context explanation",
+                "AUTHENTICITY_ASSESSMENT": "Refer to context explanation for authenticity details",
+                "SUGGESTED_CORRECTIONS": "See enhanced interpretation for suggestions"
+            },
+            "scene_validation": {
+                "match_score": 40,
+                "is_logical_match": false,
+                "explanation": "Scene type 'sunrise_sunset' with dominant emotion 'neutral'",
+                "expected_emotions": [
+                    "neutral"
+                ],
+                "confidence": 60
+            },
+            "correlation_assessment": {
+                "correlation_score": 75,
+                "correlation_status": "context_appropriate",
+                "explanation": "Emotions are contextually appropriate for sunrise_sunset setting",
+                "recommendations": [],
+                "scene_type": "sunrise_sunset",
+                "facial_positivity": 0.477,
+                "dominant_emotion": "neutral"
+            },
+            "analysis_type": "face_enhanced_with_scene",
+            "scene_context": {
+                "scene_type": "sunrise_sunset",
+                "scene_emotions": [
+                    "peaceful",
+                    "hopeful",
+                    "romantic",
+                    "inspiring"
+                ],
+                "scene_confidence": 0.6,
+                "color_analysis": {},
+                "lighting_mood": "unknown",
+                "contextual_match_score": 75,
+                "contextual_match": "moderately_congruent"
+            }
+        },
+        "object_recognition": {
+            "detected_objects": [
+                "bed",
+                "person"
+            ],
+            "lifestyle_categories": {
+                "home": 1,
+                "social": 1
+            },
+            "activity_level": 3.6,
+            "sophistication_score": 0
+        },
+        "composition": {
+            "symmetry_score": 0.893578145548967,
+            "balance_score": 0.8562872858463995,
+            "rule_of_thirds_score": 0.8,
+            "overall_aesthetic_score": 0.8499551437984554
+        },
+        "sentiment": {
+            "overall_mood": "neutral",
+            "mood_description": "neutral (face+scene: sunrise_sunset, moderately_congruent)",
+            "color_sentiment": "positive",
+            "consistency_score": 1.0,
+            "curation_type": "curated",
+            "analysis_insights": {
+                "analysis_type": "face_with_scene_context",
+                "scene_type": "sunrise_sunset",
+                "contextual_match": "moderately_congruent",
+                "scene_influence": 0
+            }
+        },
+        "image_path": "data/uploads\\IMG_20231214_094244772.jpg",
+        "image_index": 1
+    }
+]
