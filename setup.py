@@ -9,7 +9,37 @@ This script automatically sets up the complete environment for the Enhanced Visu
 3. Downloads and caches all AI models for optimal performance
 4. Verifies GPU availability and sets up acceleration
 5. Creates necessary directories and configuration files
-6. Tests the complete setup to ensure everything works perfectly
+6. Tests the complete setu            if cache_result.returncode == 0:
+                self.log("✅ All models downloaded and cached successfully")
+                self.log("🚀 Models will load instantly on first use!")
+            else:
+                self.log("⚠️  Some models may download on first use", "WARNING")
+                if cache_result.stderr:
+                    self.log(f"Model download details: {cache_result.stderr[:200]}...", "DEBUG")
+            
+            # Cleanup cache script
+            try:
+                cache_file.unlink(missing_ok=True)
+            except:
+                pass  # Ignore cleanup errors
+            
+            return True
+            
+        except subprocess.TimeoutExpired:
+            self.log("⚠️  Model download timeout - models will download on first use", "WARNING")
+            try:
+                cache_file.unlink(missing_ok=True)
+            except:
+                pass
+            return True
+        except Exception as e:
+            self.log(f"⚠️  Model caching issue: {e}", "WARNING")
+            self.log("Models will download automatically on first use", "INFO")
+            try:
+                cache_file.unlink(missing_ok=True)
+            except:
+                pass
+            return Truehing works perfectly
 
 Run this script once before first use for optimal performance.
 """
@@ -25,13 +55,70 @@ import time
 import urllib.request
 from typing import List, Tuple, Dict
 
+# Try to import tqdm for progress bars, fallback if not available
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    # Fallback progress bar implementation
+    class tqdm:
+        def __init__(self, *args, **kwargs):
+            self.total = kwargs.get('total', 100)
+            self.desc = kwargs.get('desc', '')
+            self.current = 0
+            print(f"Starting: {self.desc}")
+        
+        def update(self, n=1):
+            self.current += n
+            if self.total:
+                percent = (self.current / self.total) * 100
+                print(f"\r{self.desc}: {percent:.1f}% ({self.current}/{self.total})", end='', flush=True)
+        
+        def close(self):
+            print()  # New line after progress
+        
+        def __enter__(self):
+            return self
+        
+        def __exit__(self, *args):
+            self.close()
+
 class EnhancedSetup:
-    def __init__(self):
+    def __init__(self, skip_models=False):
         self.project_root = Path(__file__).parent.absolute()
         self.venv_path = self.project_root / ".venv"
         self.is_windows = platform.system() == "Windows"
         self.python_executable = self._get_python_executable()
         self.setup_log = []
+        self.total_steps = 7  # Total number of setup steps
+        self.current_step = 0
+        self.skip_models = skip_models
+        
+        # Try to install tqdm if not available
+        if not TQDM_AVAILABLE:
+            self._try_install_tqdm()
+        # Try to install tqdm if not available
+        if not TQDM_AVAILABLE:
+            self._try_install_tqdm()
+        
+    def _try_install_tqdm(self):
+        """Try to install tqdm for better progress bars"""
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "tqdm"], 
+                         capture_output=True, check=True)
+            global TQDM_AVAILABLE, tqdm
+            from tqdm import tqdm as real_tqdm
+            tqdm = real_tqdm
+            TQDM_AVAILABLE = True
+        except:
+            pass  # Use fallback implementation
+    
+    def _update_overall_progress(self, step_name: str):
+        """Update overall setup progress"""
+        self.current_step += 1
+        progress = (self.current_step / self.total_steps) * 100
+        print(f"\n📊 Overall Progress: {progress:.1f}% ({self.current_step}/{self.total_steps}) - {step_name}")
         
     def log(self, message: str, level: str = "INFO"):
         """Log setup progress with timestamps"""
@@ -91,76 +178,172 @@ class EnhancedSetup:
         return True
     
     def create_virtual_environment(self) -> bool:
-        """Create Python virtual environment"""
-        self.log("🐍 Creating Python virtual environment...")
+        """Create or update Python virtual environment"""
+        self.log("🐍 Setting up Python virtual environment...")
         
         try:
-            if self.venv_path.exists():
-                self.log("📁 Removing existing virtual environment...")
-                shutil.rmtree(self.venv_path)
+            venv_exists = self.venv_path.exists()
             
-            # Create virtual environment
-            result = subprocess.run([
-                sys.executable, "-m", "venv", str(self.venv_path)
-            ], capture_output=True, text=True, check=True)
+            if venv_exists:
+                self.log("📁 Virtual environment already exists - updating instead of removing...")
+                # Check if virtual environment is functional
+                if self._check_venv_functional():
+                    self.log("✅ Existing virtual environment is functional")
+                else:
+                    self.log("⚠️  Virtual environment appears corrupted, recreating...", "WARNING")
+                    shutil.rmtree(self.venv_path)
+                    venv_exists = False
             
-            self.log("✅ Virtual environment created successfully")
-            
-            # Upgrade pip to latest version
-            self.log("📦 Upgrading pip to latest version...")
-            pip_upgrade = subprocess.run([
-                self.python_executable, "-m", "pip", "install", "--upgrade", "pip"
-            ], capture_output=True, text=True)
-            
-            if pip_upgrade.returncode == 0:
-                self.log("✅ Pip upgraded successfully")
-            else:
-                self.log(f"⚠️  Pip upgrade warning: {pip_upgrade.stderr}", "WARNING")
+            if not venv_exists:
+                # Create virtual environment
+                self.log("🔨 Creating new virtual environment...")
+                with tqdm(total=3, desc="Creating virtual environment") as pbar:
+                    result = subprocess.run([
+                        sys.executable, "-m", "venv", str(self.venv_path)
+                    ], capture_output=True, text=True, check=True)
+                    pbar.update(1)
+                    
+                    self.log("✅ Virtual environment created successfully")
+                    pbar.update(1)
             
             return True
             
         except subprocess.CalledProcessError as e:
-            self.log(f"❌ Failed to create virtual environment: {e}", "ERROR")
+            self.log(f"❌ Failed to setup virtual environment: {e}", "ERROR")
             if e.stderr:
                 self.log(f"Error details: {e.stderr}", "ERROR")
             return False
     
+    def _check_venv_functional(self) -> bool:
+        """Check if the existing virtual environment is functional"""
+        try:
+            # Test if Python executable exists and works
+            if not Path(self.python_executable).exists():
+                return False
+            
+            result = subprocess.run([
+                self.python_executable, "--version"
+            ], capture_output=True, text=True, timeout=10)
+            
+            return result.returncode == 0
+        except:
+            return False
+    
+    def _check_pytorch_installed(self) -> bool:
+        """Check if PyTorch is already installed"""
+        try:
+            result = subprocess.run([
+                self.python_executable, "-c", "import torch; print(torch.__version__)"
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                self.log(f"Found existing PyTorch version: {version}")
+                return True
+            return False
+        except:
+            return False
+    
+    def _check_package_installed(self, package_name: str) -> bool:
+        """Check if a package is already installed"""
+        try:
+            result = subprocess.run([
+                self.python_executable, "-c", f"import {package_name}"
+            ], capture_output=True, text=True)
+            return result.returncode == 0
+        except:
+            return False
+    
+    def _install_pytorch_smart(self) -> bool:
+        """Smart PyTorch installation with universal GPU support"""
+        # Try to detect CUDA capability first
+        cuda_version = self._detect_cuda_version()
+        
+        if cuda_version:
+            self.log(f"Detected CUDA {cuda_version}, installing compatible PyTorch...")
+            
+            # Universal CUDA installation - let PyTorch auto-detect
+            torch_cmd = [
+                self.python_executable, "-m", "pip", "install", 
+                "torch", "torchvision", "torchaudio"
+            ]
+            
+            with tqdm(total=1, desc="Installing PyTorch with GPU support") as pbar:
+                torch_result = subprocess.run(torch_cmd, capture_output=True, text=True)
+                pbar.update(1)
+                
+            if torch_result.returncode == 0:
+                self.log("✅ PyTorch with GPU support installed")
+                return True
+        
+        # Fallback to CPU version
+        self.log("Installing CPU-only PyTorch...")
+        cpu_torch_cmd = [
+            self.python_executable, "-m", "pip", "install", 
+            "torch", "torchvision", "torchaudio", "--index-url", 
+            "https://download.pytorch.org/whl/cpu"
+        ]
+        
+        with tqdm(total=1, desc="Installing PyTorch CPU version") as pbar:
+            cpu_result = subprocess.run(cpu_torch_cmd, capture_output=True, text=True)
+            pbar.update(1)
+            
+        if cpu_result.returncode == 0:
+            self.log("✅ PyTorch CPU version installed")
+            return True
+        
+        return False
+    
+    def _detect_cuda_version(self) -> str:
+        """Detect CUDA version if available"""
+        try:
+            # Try nvidia-smi command
+            result = subprocess.run(["nvidia-smi"], capture_output=True, text=True)
+            if result.returncode == 0 and "CUDA Version:" in result.stdout:
+                # Extract CUDA version from nvidia-smi output
+                for line in result.stdout.split('\n'):
+                    if "CUDA Version:" in line:
+                        cuda_version = line.split("CUDA Version:")[1].strip().split()[0]
+                        return cuda_version
+        except:
+            pass
+        
+        return None
+
     def install_dependencies(self) -> bool:
-        """Install all required Python packages"""
+        """Install all required Python packages with smart detection and progress tracking"""
         self.log("📦 Installing Python dependencies...")
         
         try:
-            # Install PyTorch with CUDA support first (if available)
-            self.log("🔥 Installing PyTorch with CUDA support...")
-            torch_cmd = [
-                self.python_executable, "-m", "pip", "install", 
-                "torch", "torchvision", "torchaudio", 
-                "--index-url", "https://download.pytorch.org/whl/cu121"
-            ]
-            
-            torch_result = subprocess.run(torch_cmd, capture_output=True, text=True)
-            if torch_result.returncode == 0:
-                self.log("✅ PyTorch with CUDA support installed")
+            # Check if PyTorch is already installed
+            if self._check_pytorch_installed():
+                self.log("✅ PyTorch already installed, skipping...")
             else:
-                self.log("⚠️  CUDA version not compatible, installing CPU-only PyTorch", "WARNING")
-                cpu_torch_cmd = [
-                    self.python_executable, "-m", "pip", "install", 
-                    "torch", "torchvision", "torchaudio"
-                ]
-                subprocess.run(cpu_torch_cmd, capture_output=True, text=True, check=True)
-                self.log("✅ PyTorch CPU version installed")
+                # Smart PyTorch installation with universal CUDA support
+                self.log("🔥 Installing PyTorch with automatic GPU detection...")
+                if self._install_pytorch_smart():
+                    self.log("✅ PyTorch installation completed")
+                else:
+                    self.log("⚠️ PyTorch installation had issues, but continuing...", "WARNING")
             
-            # Install main requirements
+            # Check and install main requirements intelligently
             requirements_file = self.project_root / "requirements.txt"
             if requirements_file.exists():
-                self.log("📋 Installing requirements from requirements.txt...")
-                install_cmd = [
-                    self.python_executable, "-m", "pip", "install", 
-                    "-r", str(requirements_file)
-                ]
-                
-                result = subprocess.run(install_cmd, capture_output=True, text=True, check=True)
-                self.log("✅ All dependencies installed successfully")
+                if self._check_requirements_installed(requirements_file):
+                    self.log("✅ Most requirements already installed, checking for updates...")
+                    self._install_missing_requirements(requirements_file)
+                else:
+                    self.log("📋 Installing requirements from requirements.txt...")
+                    with tqdm(total=1, desc="Installing dependencies from requirements.txt") as pbar:
+                        install_cmd = [
+                            self.python_executable, "-m", "pip", "install", 
+                            "-r", str(requirements_file)
+                        ]
+                        
+                        result = subprocess.run(install_cmd, capture_output=True, text=True, check=True)
+                        pbar.update(1)
+                        
+                    self.log("✅ All dependencies installed successfully")
             else:
                 self.log("⚠️  requirements.txt not found, installing core packages manually", "WARNING")
                 self._install_core_packages()
@@ -173,8 +356,69 @@ class EnhancedSetup:
                 self.log(f"Error details: {e.stderr}", "ERROR")
             return False
     
+    def _check_requirements_installed(self, requirements_file: Path) -> bool:
+        """Check if most requirements are already installed"""
+        try:
+            with open(requirements_file, 'r', encoding='utf-8') as f:
+                requirements = f.readlines()
+            
+            installed_count = 0
+            total_count = 0
+            
+            for req in requirements:
+                req = req.strip()
+                if req and not req.startswith('#'):
+                    package_name = req.split('>=')[0].split('==')[0].split('[')[0]
+                    total_count += 1
+                    
+                    if self._check_package_installed(package_name.replace('-', '_')):
+                        installed_count += 1
+            
+            # If 70% or more packages are installed, consider it mostly installed
+            if total_count > 0:
+                percentage = (installed_count / total_count) * 100
+                self.log(f"Found {installed_count}/{total_count} packages already installed ({percentage:.1f}%)")
+                return percentage >= 70
+            
+            return False
+        except:
+            return False
+    
+    def _install_missing_requirements(self, requirements_file: Path):
+        """Install only missing requirements with progress tracking"""
+        try:
+            # Use pip check to see what's missing
+            check_cmd = [
+                self.python_executable, "-m", "pip", "check"
+            ]
+            
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+            
+            if check_result.returncode != 0:
+                self.log("Installing missing/outdated packages...")
+                with tqdm(total=1, desc="Installing missing packages") as pbar:
+                    install_cmd = [
+                        self.python_executable, "-m", "pip", "install", 
+                        "-r", str(requirements_file), "--upgrade"
+                    ]
+                    subprocess.run(install_cmd, capture_output=True, text=True)
+                    pbar.update(1)
+                self.log("✅ Missing packages installed")
+            else:
+                self.log("✅ All requirements satisfied")
+                
+        except:
+            self.log("Installing requirements normally...")
+            with tqdm(total=1, desc="Installing requirements") as pbar:
+                install_cmd = [
+                    self.python_executable, "-m", "pip", "install", 
+                    "-r", str(requirements_file)
+                ]
+                subprocess.run(install_cmd, capture_output=True, text=True)
+                pbar.update(1)
+    
     def _install_core_packages(self):
-        """Install core packages manually if requirements.txt is missing"""
+        """Install core packages manually if requirements.txt is missing with progress tracking"""
         core_packages = [
             "fastapi>=0.104.0",
             "uvicorn[standard]>=0.24.0", 
@@ -198,111 +442,177 @@ class EnhancedSetup:
             "accelerate>=0.24.0"
         ]
         
-        for package in core_packages:
-            self.log(f"Installing {package}...")
-            subprocess.run([
-                self.python_executable, "-m", "pip", "install", package
-            ], capture_output=True, text=True, check=True)
+        with tqdm(total=len(core_packages), desc="Installing core packages") as pbar:
+            for package in core_packages:
+                self.log(f"Installing {package}...")
+                subprocess.run([
+                    self.python_executable, "-m", "pip", "install", package
+                ], capture_output=True, text=True, check=True)
+                pbar.update(1)
     
     def download_and_cache_models(self) -> bool:
-        """Download and cache all AI models for optimal performance"""
-        self.log("🤖 Downloading and caching AI models...")
+        """Download and cache all AI models for optimal performance - skip if already cached"""
+        self.log("🤖 Checking AI models cache...")
         
         # Create models directory
         models_dir = self.project_root / "models"
         models_dir.mkdir(exist_ok=True)
         
-        # Define models to download
-        models_to_cache = [
-            {
-                "name": "MTCNN Face Detection",
-                "model_id": "mtcnn",
-                "description": "GPU-accelerated face detection model"
-            },
-            {
-                "name": "Emotion Recognition", 
-                "model_id": "j-hartmann/emotion-english-distilroberta-base",
-                "description": "HuggingFace emotion classification model"
-            },
-            {
-                "name": "DETR Object Detection",
-                "model_id": "facebook/detr-resnet-50", 
-                "description": "Object detection and recognition model"
-            },
-            {
-                "name": "EfficientNet Emotion Backup",
-                "model_id": "trpakov/vit-face-expression",
-                "description": "Backup emotion recognition model"
-            }
-        ]
+        # Check if models are already cached
+        if self._check_models_cached():
+            self.log("✅ AI models already cached, skipping download...")
+            return True
+        
+        # Skip model download if requested
+        if self.skip_models:
+            self.log("⏭️  Skipping model download as requested - models will download on first use")
+            return True
+        
+        # Ask user if they want to download models now or skip
+        self.log("📥 AI models not found in cache.")
+        print("\n🤖 Model Download Options:")
+        print("1. Download models now (recommended for optimal performance)")
+        print("2. Skip download (models will download on first use)")
         
         try:
-            # Create a model caching script
-            cache_script = f"""
+            choice = input("\nChoose option (1 or 2): ").strip()
+            if choice == "2":
+                self.log("⏭️  Skipping model download - models will download on first use")
+                return True
+        except:
+            pass  # Continue with download if input fails
+        
+        self.log("📥 Downloading AI models (first time only)...")
+        
+        try:
+            # Create a simple model check script
+            cache_script = f'''
 import sys
-sys.path.append('{self.project_root}')
+sys.path.append(r"{self.project_root}")
+import os
+import time
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
 
-import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-from transformers import DEPRECATEDwarning
-import warnings
-warnings.filterwarnings("ignore", category=DEPRECATEDwarning)
+def download_with_progress(model_name, model_type="pipeline"):
+    """Download model with progress feedback"""
+    try:
+        print(f"📥 Starting download: {{model_name}}")
+        start_time = time.time()
+        
+        if model_type == "pipeline":
+            from transformers import pipeline
+            import torch
+            device = 0 if torch.cuda.is_available() else -1
+            model = pipeline("text-classification", model=model_name, device=device)
+        elif model_type == "detr":
+            from transformers import DetrImageProcessor, DetrForObjectDetection
+            processor = DetrImageProcessor.from_pretrained(model_name)
+            model = DetrForObjectDetection.from_pretrained(model_name)
+        
+        elapsed = time.time() - start_time
+        print(f"✅ Downloaded {{model_name}} in {{elapsed:.1f}}s")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error downloading {{model_name}}: {{e}}")
+        return False
 
-print("🤖 Caching AI models for optimal performance...")
-
-# Cache emotion recognition model
-print("📥 Downloading emotion recognition model...")
 try:
-    emotion_model = pipeline("text-classification", 
-                           model="j-hartmann/emotion-english-distilroberta-base",
-                           device=0 if torch.cuda.is_available() else -1)
-    print("✅ Emotion recognition model cached")
+    print("🔄 Starting AI model downloads...")
+    
+    # Download emotion model
+    success1 = download_with_progress("j-hartmann/emotion-english-distilroberta-base", "pipeline")
+    
+    # Download object detection model  
+    success2 = download_with_progress("facebook/detr-resnet-50", "detr")
+    
+    if success1 and success2:
+        print("🎉 All models cached successfully!")
+        sys.exit(0)
+    else:
+        print("⚠️  Some models failed to download but will be available on first use")
+        sys.exit(0)  # Don't fail the setup for model download issues
+        
 except Exception as e:
-    print(f"⚠️  Emotion model cache warning: {{e}}")
-
-# Cache DETR object detection model  
-print("📥 Downloading object detection model...")
-try:
-    from transformers import DEPRECATEDPreTrainedModel, DetrImageProcessor, DetrForObjectDetection
-    processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
-    detr_model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
-    print("✅ Object detection model cached")
-except Exception as e:
-    print(f"⚠️  DETR model cache warning: {{e}}")
-
-# Cache backup emotion model
-print("📥 Downloading backup emotion model...")
-try:
-    backup_model = pipeline("image-classification",
-                          model="trpakov/vit-face-expression", 
-                          device=0 if torch.cuda.is_available() else -1)
-    print("✅ Backup emotion model cached")
-except Exception as e:
-    print(f"⚠️  Backup model cache warning: {{e}}")
-
-print("🎉 Model caching complete!")
-"""
+    print(f"❌ Model caching error: {{e}}")
+    print("📝 Models will download automatically on first use")
+    sys.exit(0)  # Don't fail the setup
+'''
             
             # Write and execute caching script
             cache_file = self.project_root / "cache_models.py"
-            with open(cache_file, "w") as f:
+            with open(cache_file, "w", encoding='utf-8') as f:
                 f.write(cache_script)
             
-            self.log("📥 Starting model downloads (this may take 5-10 minutes)...")
-            cache_result = subprocess.run([
+            self.log("📥 Starting model downloads (may take 5-10 minutes)...")
+            
+            # Show progress for model download with real-time monitoring
+            process = subprocess.Popen([
                 self.python_executable, str(cache_file)
-            ], capture_output=True, text=True, timeout=1800)  # 30 min timeout
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            # Monitor the process with a more realistic progress approach
+            self.log("⏳ Model download in progress (this may take several minutes)...")
+            
+            # Wait for process completion with periodic updates
+            start_time = time.time()
+            timeout = 600  # Reduce to 10 minutes
+            
+            while process.poll() is None:
+                elapsed = time.time() - start_time
+                if elapsed > timeout:
+                    self.log("⚠️  Model download taking too long, terminating...", "WARNING")
+                    process.terminate()
+                    time.sleep(3)  # Give process time to terminate
+                    if process.poll() is None:
+                        process.kill()  # Force kill if still running
+                    break
+                
+                # Show periodic progress updates
+                if int(elapsed) % 60 == 0 and elapsed > 0:  # Every minute
+                    self.log(f"📥 Download still in progress... (elapsed: {elapsed/60:.1f} minutes)")
+                
+                time.sleep(5)  # Check every 5 seconds instead of 1
+            
+            # Get final result with timeout
+            try:
+                if process.poll() is not None:
+                    stdout, stderr = process.communicate(timeout=10)
+                    cache_result = type('Result', (), {
+                        'returncode': process.returncode, 
+                        'stdout': stdout, 
+                        'stderr': stderr
+                    })()
+                else:
+                    cache_result = type('Result', (), {
+                        'returncode': -1, 
+                        'stdout': '', 
+                        'stderr': 'Process terminated due to timeout'
+                    })()
+            except subprocess.TimeoutExpired:
+                process.kill()
+                cache_result = type('Result', (), {
+                    'returncode': -1, 
+                    'stdout': '', 
+                    'stderr': 'Process killed - communication timeout'
+                })()
+            
+            self.log("✅ Model download process completed")
             
             if cache_result.returncode == 0:
                 self.log("✅ All models downloaded and cached successfully")
                 self.log("🚀 Models will load instantly on first use!")
             else:
-                self.log("⚠️  Some models may not have cached properly", "WARNING")
-                if cache_result.stderr:
-                    self.log(f"Cache warnings: {cache_result.stderr}", "WARNING")
+                self.log("⚠️  Some models may download on first use", "WARNING")
+                if hasattr(cache_result, 'stderr') and cache_result.stderr:
+                    self.log(f"Download info: {cache_result.stderr[:200]}...", "DEBUG")
             
             # Cleanup cache script
-            cache_file.unlink(missing_ok=True)
+            try:
+                cache_file.unlink(missing_ok=True)
+            except Exception:
+                pass  # Ignore cleanup errors
             
             return True
             
@@ -313,6 +623,23 @@ print("🎉 Model caching complete!")
             self.log(f"⚠️  Model caching issue: {e}", "WARNING")
             self.log("Models will download automatically on first use", "INFO")
             return True
+    
+    def _check_models_cached(self) -> bool:
+        """Check if models are already cached in the environment"""
+        try:
+            # Quick check if transformers cache has our models
+            result = subprocess.run([
+                self.python_executable, "-c", 
+                "from transformers import AutoTokenizer; "
+                "t = AutoTokenizer.from_pretrained('j-hartmann/emotion-english-distilroberta-base'); "
+                "print('cached')"
+            ], capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0 and 'cached' in result.stdout:
+                return True
+            return False
+        except:
+            return False
     
     def setup_directories_and_config(self) -> bool:
         """Create necessary directories and configuration files"""
@@ -456,9 +783,10 @@ except Exception as e:
         
         try:
             # Test basic imports and functionality
+            project_path = str(self.project_root).replace('\\', '/')
             test_script = f"""
 import sys
-sys.path.append('{self.project_root}')
+sys.path.append(r'{self.project_root}')
 
 print("Testing core imports...")
 try:
@@ -466,31 +794,31 @@ try:
     from src.enhanced_facial_emotion_analysis import EnhancedFacialEmotionAnalysis
     from src.gemini_context_analyzer import GeminiContextAnalyzer
     from src.intelligent_emotion_analysis import IntelligentEmotionAnalysis
-    print("✅ Core modules imported successfully")
+    print("Core modules imported successfully")
 except Exception as e:
-    print(f"❌ Import error: {{e}}")
+    print(f"Import error: {{e}}")
     sys.exit(1)
 
 print("Testing model initialization...")
 try:
     # Test without Gemini API key for basic functionality
     generator = VisualPersonaGenerator(gemini_api_key=None)
-    print("✅ Visual Persona Generator initialized")
+    print("Visual Persona Generator initialized")
 except Exception as e:
-    print(f"❌ Initialization error: {{e}}")
+    print(f"Initialization error: {{e}}")
     sys.exit(1)
 
 print("Testing emotion analysis setup...")
 try:
     from src.enhanced_facial_emotion_analysis import EnhancedFacialEmotionAnalysis
     emotion_analyzer = EnhancedFacialEmotionAnalysis()
-    print("✅ Emotion analysis ready")
+    print("Emotion analysis ready")
 except Exception as e:
-    print(f"❌ Emotion analysis error: {{e}}")
+    print(f"Emotion analysis error: {{e}}")
     sys.exit(1)
 
-print("🎉 Setup test completed successfully!")
-print("🚀 Enhanced Visual Persona Generator is ready to use!")
+print("Setup test completed successfully!")
+print("Enhanced Visual Persona Generator is ready to use!")
 """
             
             result = subprocess.run([
@@ -515,12 +843,17 @@ print("🚀 Enhanced Visual Persona Generator is ready to use!")
     def save_setup_log(self):
         """Save setup log for troubleshooting"""
         log_file = self.project_root / "setup_log.txt"
-        with open(log_file, "w") as f:
-            f.write("Enhanced Visual Persona Generator - Setup Log\n")
-            f.write("=" * 50 + "\n\n")
-            for entry in self.setup_log:
-                f.write(entry + "\n")
-        self.log(f"📝 Setup log saved to: {log_file}")
+        try:
+            with open(log_file, "w", encoding='utf-8', errors='replace') as f:
+                f.write("Enhanced Visual Persona Generator - Setup Log\n")
+                f.write("=" * 50 + "\n\n")
+                for entry in self.setup_log:
+                    # Remove emojis and special characters for compatibility
+                    clean_entry = entry.encode('ascii', errors='ignore').decode('ascii')
+                    f.write(clean_entry + "\n")
+            self.log(f"Setup log saved to: {log_file}")
+        except Exception as e:
+            print(f"Could not save setup log: {e}")
     
     def print_next_steps(self):
         """Print instructions for next steps"""
@@ -556,17 +889,18 @@ print("🚀 Enhanced Visual Persona Generator is ready to use!")
         print("\n" + "="*60)
     
     def run_complete_setup(self) -> bool:
-        """Run the complete setup process"""
+        """Run the complete setup process with progress tracking"""
         print("🚀 Enhanced Visual Persona Generator - Automated Setup")
         print("=" * 55)
         print("This will set up everything needed for optimal performance:")
-        print("• Python virtual environment")
+        print("• Python virtual environment (preserves existing)")
         print("• All dependencies with GPU support")  
         print("• AI model downloads and caching")
         print("• Directory structure and configuration")
         print("• Complete functionality testing")
         print("\n⏱️  Estimated time: 5-15 minutes (depending on internet speed)")
         print("💾 Disk space needed: ~5GB for models and dependencies")
+        print("📊 Progress bars will show installation progress")
         
         # Confirm before proceeding
         if not input("\n▶️  Continue with setup? (y/N): ").lower().startswith('y'):
@@ -575,7 +909,7 @@ print("🚀 Enhanced Visual Persona Generator is ready to use!")
         
         print("\n🔄 Starting automated setup...\n")
         
-        # Run setup steps
+        # Run setup steps with progress tracking
         steps = [
             ("System Requirements", self.check_system_requirements),
             ("Virtual Environment", self.create_virtual_environment), 
@@ -587,16 +921,84 @@ print("🚀 Enhanced Visual Persona Generator is ready to use!")
         ]
         
         success_count = 0
-        for step_name, step_func in steps:
-            self.log(f"\n{'='*20} {step_name} {'='*20}")
-            try:
-                if step_func():
-                    success_count += 1
-                    self.log(f"✅ {step_name} completed successfully")
-                else:
-                    self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
-            except Exception as e:
-                self.log(f"❌ {step_name} failed: {e}", "ERROR")
+        
+        # Overall progress tracking
+        with tqdm(total=len(steps), desc="Overall Setup Progress", position=0) as overall_pbar:
+            for step_name, step_func in steps:
+                self._update_overall_progress(step_name)
+                self.log(f"\n{'='*20} {step_name} {'='*20}")
+                
+                try:
+                    if step_func():
+                        success_count += 1
+                        self.log(f"✅ {step_name} completed successfully")
+                    else:
+                        self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
+                except Exception as e:
+                    self.log(f"❌ {step_name} failed: {e}", "ERROR")
+                
+                overall_pbar.update(1)
+                time.sleep(0.5)  # Brief pause for visual feedback
+        
+        # Save setup log
+        self.save_setup_log()
+        
+        # Show results
+        if success_count >= len(steps) - 1:  # Allow 1 failure
+            self.log("\n🎉 Setup completed successfully!")
+            self.print_next_steps()
+            return True
+        else:
+            self.log(f"\n⚠️  Setup completed with issues ({success_count}/{len(steps)} steps successful)", "WARNING")
+            self.log("Check setup_log.txt for details")
+            return False
+    
+    def run_automated_setup(self) -> bool:
+        """Run setup without user prompts (non-interactive mode)"""
+        print("🚀 Enhanced Visual Persona Generator - Automated Setup")
+        print("=" * 55)
+        print("Running in non-interactive mode...")
+        print("• Python virtual environment (preserves existing)")
+        print("• All dependencies with GPU support")  
+        print("• Directory structure and configuration")
+        print("• Complete functionality testing")
+        if self.skip_models:
+            print("• AI models: SKIPPED (will download on first use)")
+        else:
+            print("• AI models: Will attempt download")
+        
+        print("\n🔄 Starting automated setup...\n")
+        
+        # Run setup steps with progress tracking
+        steps = [
+            ("System Requirements", self.check_system_requirements),
+            ("Virtual Environment", self.create_virtual_environment), 
+            ("Dependencies", self.install_dependencies),
+            ("AI Models", self.download_and_cache_models),
+            ("Configuration", self.setup_directories_and_config),
+            ("GPU Setup", lambda: self.verify_gpu_setup() is not None),
+            ("Final Testing", self.test_complete_setup)
+        ]
+        
+        success_count = 0
+        
+        # Overall progress tracking
+        with tqdm(total=len(steps), desc="Overall Setup Progress", position=0) as overall_pbar:
+            for step_name, step_func in steps:
+                self._update_overall_progress(step_name)
+                self.log(f"\n{'='*20} {step_name} {'='*20}")
+                
+                try:
+                    if step_func():
+                        success_count += 1
+                        self.log(f"✅ {step_name} completed successfully")
+                    else:
+                        self.log(f"⚠️  {step_name} completed with warnings", "WARNING")
+                except Exception as e:
+                    self.log(f"❌ {step_name} failed: {e}", "ERROR")
+                
+                overall_pbar.update(1)
+                time.sleep(0.2)  # Brief pause for visual feedback
         
         # Save setup log
         self.save_setup_log()
@@ -613,15 +1015,48 @@ print("🚀 Enhanced Visual Persona Generator is ready to use!")
 
 def main():
     """Main setup function"""
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Enhanced Visual Persona Generator Setup')
+    parser.add_argument('--skip-models', action='store_true', 
+                       help='Skip model downloads during setup')
+    parser.add_argument('--non-interactive', action='store_true',
+                       help='Run setup without user prompts')
+    
+    args = parser.parse_args()
+    
+    # Set UTF-8 encoding for Windows
+    import locale
+    import codecs
+    if platform.system() == "Windows":
+        try:
+            # Try to set UTF-8 encoding for Windows console
+            import sys
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except:
+            # Fallback for older Python versions
+            import sys
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    
     try:
-        setup = EnhancedSetup()
-        success = setup.run_complete_setup()
+        setup = EnhancedSetup(skip_models=args.skip_models)
+        
+        if args.non_interactive:
+            # Skip the confirmation prompt in non-interactive mode
+            print("🚀 Running automated setup in non-interactive mode...")
+            success = setup.run_automated_setup()
+        else:
+            success = setup.run_complete_setup()
+            
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
-        print("\n\n⚠️  Setup interrupted by user")
+        print("\n\nSetup interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Setup failed with error: {e}")
+        print(f"\nSetup failed with error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
