@@ -9,10 +9,14 @@ echo  Enhanced Visual Persona Generator - Automated Setup (Windows)
 echo ================================================================
 echo.
 echo This will automatically set up everything needed:
-echo  * Python virtual environment
+echo  * Python virtual environment (preserves existing if working)
 echo  * All dependencies with GPU acceleration
 echo  * AI model downloads and caching
 echo  * Complete configuration and testing
+echo.
+echo Usage:
+echo  setup_windows.bat                    # Normal setup (keeps existing venv)
+echo  setup_windows.bat --force-recreate   # Force recreate virtual environment
 echo.
 
 REM Check if Python is available
@@ -46,7 +50,9 @@ if errorlevel 1 (
 REM Run the setup script
 echo 🚀 Launching automated setup...
 echo.
-python setup.py
+
+REM Pass all command line arguments to setup.py
+python setup.py %*
 
 REM Check if setup was successful
 if errorlevel 1 (

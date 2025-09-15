@@ -1,61 +1,53 @@
 Enhanced Visual Persona Generator - Setup Log
 ==================================================
 
-[2025-09-14 00:19:25] INFO: 
+[2025-09-15 19:02:45] INFO: 
 ==================== System Requirements ====================
-[2025-09-14 00:19:25] INFO:  Checking system requirements...
-[2025-09-14 00:19:25] INFO:  Python 3.13.2 - Compatible
-[2025-09-14 00:19:25] INFO:  94.9GB free space available
-[2025-09-14 00:19:25] INFO:  Git available for model downloads
-[2025-09-14 00:19:25] INFO:  System Requirements completed successfully
-[2025-09-14 00:19:26] INFO: 
+[2025-09-15 19:02:45] INFO:  Checking system requirements...
+[2025-09-15 19:02:45] INFO:  Python 3.13.2 - Compatible
+[2025-09-15 19:02:45] INFO:  104.8GB free space available
+[2025-09-15 19:02:45] INFO:  Git available for model downloads
+[2025-09-15 19:02:45] INFO:  System Requirements completed successfully
+[2025-09-15 19:02:45] INFO: 
 ==================== Virtual Environment ====================
-[2025-09-14 00:19:26] INFO:  Setting up Python virtual environment...
-[2025-09-14 00:19:26] INFO:  Virtual environment already exists - updating instead of removing...
-[2025-09-14 00:19:26] INFO:  Existing virtual environment is functional
-[2025-09-14 00:19:26] INFO:  Virtual Environment completed successfully
-[2025-09-14 00:19:26] INFO: 
+[2025-09-15 19:02:45] INFO:  Setting up Python virtual environment...
+[2025-09-15 19:02:45] INFO:  Found existing virtual environment, checking if it's working...
+[2025-09-15 19:02:45] INFO:  Existing virtual environment is working - keeping it!
+[2025-09-15 19:02:45] INFO:  Virtual environment Python: Python 3.13.2
+[2025-09-15 19:02:45] INFO:  Ensuring pip is up to date...
+[2025-09-15 19:02:49] INFO:  Pip upgraded successfully
+[2025-09-15 19:02:49] INFO:  Virtual Environment completed successfully
+[2025-09-15 19:02:49] INFO: 
 ==================== Dependencies ====================
-[2025-09-14 00:19:26] INFO:  Installing Python dependencies...
-[2025-09-14 00:19:30] INFO: Found existing PyTorch version: 2.7.1+cu118
-[2025-09-14 00:19:30] INFO:  PyTorch already installed, skipping...
-[2025-09-14 00:19:52] INFO: Found 16/21 packages already installed (76.2%)
-[2025-09-14 00:19:52] INFO:  Most requirements already installed, checking for updates...
-[2025-09-14 00:19:53] INFO:  All requirements satisfied
-[2025-09-14 00:19:53] INFO:  Dependencies completed successfully
-[2025-09-14 00:19:53] INFO: 
+[2025-09-15 19:02:49] INFO:  Installing Python dependencies...
+[2025-09-15 19:02:51] INFO: Found existing PyTorch version: 2.8.0+cpu
+[2025-09-15 19:02:51] INFO:  PyTorch already installed, skipping...
+[2025-09-15 19:03:21] INFO: Found 18/24 packages already installed (75.0%)
+[2025-09-15 19:03:21] INFO:  Most requirements already installed, checking for updates...
+[2025-09-15 19:03:22] INFO:  All requirements satisfied
+[2025-09-15 19:03:22] INFO:  Dependencies completed successfully
+[2025-09-15 19:03:22] INFO: 
 ==================== AI Models ====================
-[2025-09-14 00:19:53] INFO:  Checking AI models cache...
-[2025-09-14 00:20:23] INFO:  AI models not found in cache.
-[2025-09-14 00:20:35] INFO:  Downloading AI models (first time only)...
-[2025-09-14 00:20:35] INFO:  Starting model downloads (may take 5-10 minutes)...
-[2025-09-14 00:20:35] INFO:  Model download in progress (this may take several minutes)...
-[2025-09-14 00:20:35] INFO:  Download still in progress... (elapsed: 0.0 minutes)
-[2025-09-14 00:20:40] INFO:  Model download process completed
-[2025-09-14 00:20:40] WARNING:   Some models may download on first use
-[2025-09-14 00:20:40] DEBUG: Download info: Traceback (most recent call last):
-  File "C:\Users\Yaxh\Desktop\Imagilysis\cache_models.py", line 34, in <module>
-    print("\U0001f504 Starting AI model downloads...")
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^...
-[2025-09-14 00:20:40] INFO:  AI Models completed successfully
-[2025-09-14 00:20:41] INFO: 
+[2025-09-15 19:03:22] INFO:  Checking AI models cache...
+[2025-09-15 19:03:30] INFO:  AI models already cached, skipping download...
+[2025-09-15 19:03:30] INFO:  AI Models completed successfully
+[2025-09-15 19:03:30] INFO: 
 ==================== Configuration ====================
-[2025-09-14 00:20:41] INFO:  Setting up directories and configuration...
-[2025-09-14 00:20:41] INFO:  Directory created: data
-[2025-09-14 00:20:41] INFO:  Directory created: data/uploads
-[2025-09-14 00:20:41] INFO:  Directory created: models
-[2025-09-14 00:20:41] INFO:  Directory created: utils
-[2025-09-14 00:20:41] INFO:  .env file already exists
-[2025-09-14 00:20:41] INFO:  Configuration completed successfully
-[2025-09-14 00:20:41] INFO: 
+[2025-09-15 19:03:30] INFO:  Setting up directories and configuration...
+[2025-09-15 19:03:30] INFO:  Directory created: data
+[2025-09-15 19:03:30] INFO:  Directory created: data/uploads
+[2025-09-15 19:03:30] INFO:  Directory created: models
+[2025-09-15 19:03:30] INFO:  Directory created: utils
+[2025-09-15 19:03:30] INFO:  .env file already exists
+[2025-09-15 19:03:30] INFO:  Configuration completed successfully
+[2025-09-15 19:03:30] INFO: 
 ==================== GPU Setup ====================
-[2025-09-14 00:20:41] INFO:  Checking GPU availability...
-[2025-09-14 00:20:46] INFO:  GPU acceleration available! 1 GPU(s) detected
-[2025-09-14 00:20:46] INFO:    GPU 0: NVIDIA GeForce GTX 1650 (4.0GB)
-[2025-09-14 00:20:46] INFO:  GPU Setup completed successfully
-[2025-09-14 00:20:47] INFO: 
+[2025-09-15 19:03:30] INFO:  Checking GPU availability...
+[2025-09-15 19:03:37] INFO:  GPU not available - using CPU (still fast!)
+[2025-09-15 19:03:37] INFO:  GPU Setup completed successfully
+[2025-09-15 19:03:37] INFO: 
 ==================== Final Testing ====================
-[2025-09-14 00:20:47] INFO:  Testing complete setup...
-[2025-09-14 00:20:59] INFO:  Complete setup test passed!
-[2025-09-14 00:20:59] INFO:  Enhanced Visual Persona Generator is ready to use!
-[2025-09-14 00:20:59] INFO:  Final Testing completed successfully
+[2025-09-15 19:03:37] INFO:  Testing complete setup...
+[2025-09-15 19:03:50] INFO:  Complete setup test passed!
+[2025-09-15 19:03:50] INFO:  Enhanced Visual Persona Generator is ready to use!
+[2025-09-15 19:03:50] INFO:  Final Testing completed successfully

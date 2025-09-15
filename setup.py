@@ -32,6 +32,7 @@ class EnhancedSetup:
         self.is_windows = platform.system() == "Windows"
         self.python_executable = self._get_python_executable()
         self.setup_log = []
+        self.force_recreate_venv = False  # Flag to force venv recreation
         
     def log(self, message: str, level: str = "INFO"):
         """Log setup progress with timestamps"""
@@ -50,9 +51,16 @@ class EnhancedSetup:
     def _get_pip_executable(self) -> str:
         """Get the appropriate pip executable path"""
         if self.is_windows:
-            return str(self.venv_path / "Scripts" / "pip.exe")
+            pip_path = self.venv_path / "Scripts" / "pip.exe"
         else:
-            return str(self.venv_path / "bin" / "pip")
+            pip_path = self.venv_path / "bin" / "pip"
+        
+        # Check if pip actually exists and is executable
+        if not pip_path.exists():
+            # Fallback to python -m pip
+            return None
+        
+        return str(pip_path)
     
     def check_system_requirements(self) -> bool:
         """Check if system meets minimum requirements"""
@@ -91,15 +99,91 @@ class EnhancedSetup:
         return True
     
     def create_virtual_environment(self) -> bool:
-        """Create Python virtual environment"""
-        self.log("🐍 Creating Python virtual environment...")
+        """Create Python virtual environment (preserve existing if working)"""
+        self.log("🐍 Setting up Python virtual environment...")
         
         try:
+            # Check if existing virtual environment is working
             if self.venv_path.exists():
-                self.log("📁 Removing existing virtual environment...")
-                shutil.rmtree(self.venv_path)
+                if self.force_recreate_venv:
+                    self.log("🔄 Force recreation requested - removing existing virtual environment...")
+                    shutil.rmtree(self.venv_path)
+                else:
+                    self.log("📁 Found existing virtual environment, checking if it's working...")
+                    
+                    # Test if the existing venv works
+                    try:
+                        test_result = subprocess.run([
+                            self.python_executable, "-c", 
+                            "import sys; print(f'Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+                        ], capture_output=True, text=True, timeout=10)
+                        
+                        if test_result.returncode == 0:
+                            self.log("✅ Existing virtual environment is working - keeping it!")
+                            self.log(f"📍 Virtual environment Python: {test_result.stdout.strip()}")
+                            
+                            # Still upgrade pip to be safe
+                            self.log("📦 Ensuring pip is up to date...")
+                            
+                            # Try multiple methods to fix pip
+                            pip_fixed = False
+                            
+                            # Method 1: Try normal pip upgrade
+                            try:
+                                pip_exe = self._get_pip_executable()
+                                if pip_exe:
+                                    pip_upgrade = subprocess.run([
+                                        pip_exe, "install", "--upgrade", "pip"
+                                    ], capture_output=True, text=True, timeout=60)
+                                    
+                                    if pip_upgrade.returncode == 0:
+                                        self.log("✅ Pip upgraded successfully")
+                                        pip_fixed = True
+                            except Exception:
+                                pass
+                            
+                            # Method 2: Try python -m pip if direct pip failed
+                            if not pip_fixed:
+                                try:
+                                    pip_upgrade = subprocess.run([
+                                        self.python_executable, "-m", "pip", "install", "--upgrade", "pip"
+                                    ], capture_output=True, text=True, timeout=60)
+                                    
+                                    if pip_upgrade.returncode == 0:
+                                        self.log("✅ Pip fixed using python -m pip")
+                                        pip_fixed = True
+                                except Exception:
+                                    pass
+                            
+                            # Method 3: Reinstall pip if still broken
+                            if not pip_fixed:
+                                try:
+                                    self.log("🔧 Pip appears broken, reinstalling...")
+                                    pip_reinstall = subprocess.run([
+                                        self.python_executable, "-m", "ensurepip", "--upgrade"
+                                    ], capture_output=True, text=True, timeout=60)
+                                    
+                                    if pip_reinstall.returncode == 0:
+                                        self.log("✅ Pip reinstalled successfully")
+                                        pip_fixed = True
+                                except Exception:
+                                    pass
+                            
+                            if not pip_fixed:
+                                self.log("⚠️  Pip upgrade failed, but continuing...", "WARNING")
+                            
+                            return True
+                        else:
+                            self.log("⚠️  Existing virtual environment is corrupted", "WARNING")
+                    except (subprocess.TimeoutExpired, Exception) as e:
+                        self.log(f"⚠️  Cannot test existing virtual environment: {e}", "WARNING")
+                    
+                    # If we get here, the existing venv is not working
+                    self.log("🗑️  Removing corrupted virtual environment...")
+                    shutil.rmtree(self.venv_path)
             
-            # Create virtual environment
+            # Create new virtual environment
+            self.log("🔨 Creating new virtual environment...")
             result = subprocess.run([
                 sys.executable, "-m", "venv", str(self.venv_path)
             ], capture_output=True, text=True, check=True)
@@ -322,7 +406,10 @@ class EnhancedSetup:
             "reportlab>=4.0.0",
             "mtcnn>=0.1.1",
             "facenet-pytorch>=2.5.3",
-            "accelerate>=0.24.0"
+            "accelerate>=0.24.0",
+            "fer>=22.5.1",
+            "deepface>=0.0.79",
+            "tensorflow>=2.13.0"
         ]
         
         for package in core_packages:
@@ -371,6 +458,20 @@ try:
     processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
     detr_model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
     print("Object detection model: OK")
+    
+    # Test emotion detection libraries
+    try:
+        from fer import FER
+        fer_detector = FER()
+        print("FER emotion detection: OK")
+    except ImportError:
+        print("FER not available - will install")
+    
+    try:
+        from deepface import DeepFace
+        print("DeepFace emotion detection: OK")
+    except ImportError:
+        print("DeepFace not available - will install")
     
     print("All models cached successfully!")
     
@@ -730,6 +831,27 @@ print("Enhanced Visual Persona Generator is ready to use!")
 
 def main():
     """Main setup function"""
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Enhanced Visual Persona Generator Setup",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python setup.py                    # Normal setup (preserve existing venv)
+  python setup.py --force-recreate   # Force recreate virtual environment
+  python setup.py --help             # Show this help
+        """
+    )
+    parser.add_argument(
+        '--force-recreate', 
+        action='store_true',
+        help='Force recreation of virtual environment even if existing one works'
+    )
+    
+    args = parser.parse_args()
+    
     # Set UTF-8 encoding for Windows
     import locale
     import codecs
@@ -747,6 +869,8 @@ def main():
     
     try:
         setup = EnhancedSetup()
+        # Pass the force_recreate flag to the setup
+        setup.force_recreate_venv = args.force_recreate
         success = setup.run_complete_setup()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:

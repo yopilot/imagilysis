@@ -4,34 +4,34 @@
             "dominant_colors": [
                 [
                     171,
-                    132,
-                    107
+                    121,
+                    100
                 ],
                 [
-                    127,
-                    190,
-                    242
+                    240,
+                    238,
+                    237
                 ],
                 [
-                    128,
-                    80,
-                    50
+                    193,
+                    163,
+                    152
                 ],
                 [
-                    234,
-                    192,
-                    137
+                    116,
+                    78,
+                    65
                 ],
                 [
-                    167,
+                    221,
                     214,
-                    251
+                    212
                 ]
             ],
-            "mood": "happy",
+            "mood": "energetic",
             "personality_traits": [
-                "optimistic",
-                "friendly"
+                "passionate",
+                "bold"
             ],
             "palette_visual": "data\\palette.png"
         },
@@ -59,14 +59,14 @@
                     "disgust": 0.0,
                     "surprise": 0.1
                 },
-                "combined_positivity": 0.698,
-                "context_enhanced_positivity": 0.698,
+                "combined_positivity": 0.689,
+                "context_enhanced_positivity": 0.689,
                 "scene_influence_weight": 0.41,
                 "correlation_strength": 0.7
             },
-            "number_of_faces": 2,
+            "number_of_faces": 1,
             "social_dynamics": {
-                "social_setting": "couple",
+                "social_setting": "portrait",
                 "group_harmony": 0.37,
                 "social_confidence": 0.57,
                 "social_energy": 0.4
@@ -82,20 +82,11 @@
                     "fear": 0.0,
                     "anger": 0.0,
                     "disgust": 0.0
-                },
-                {
-                    "neutral": 0.6,
-                    "happiness": 0.3,
-                    "surprise": 0.1,
-                    "sadness": 0.0,
-                    "fear": 0.0,
-                    "anger": 0.0,
-                    "disgust": 0.0
                 }
             ],
             "gemini_correlation": {
                 "CORRELATION_SCORE": 75,
-                "CONTEXT_EXPLANATION": "```json\n{\n  \"CORRELATION_SCORE\": 75,\n  \"CONTEXT_EXPLANATION\": \"The scene is bright and cheerful with a clear blue sky. The cat displays a high degree of neutrality which aligns well with the passive a...",
+                "CONTEXT_EXPLANATION": "```json\n{\n  \"CORRELATION_SCORE\": 85,\n  \"CONTEXT_EXPLANATION\": \"The scene is categorized as \\\"bright_cheerful\\\" with high positivity scores. The facial emotions detected show happiness (30%) and surpri...",
                 "ENHANCED_INTERPRETATION": "Detailed analysis available in context explanation",
                 "AUTHENTICITY_ASSESSMENT": "Refer to context explanation for authenticity details",
                 "SUGGESTED_CORRECTIONS": "See enhanced interpretation for suggestions"
@@ -137,19 +128,20 @@
         },
         "object_recognition": {
             "detected_objects": [
-                "cat"
+                "person",
+                "person"
             ],
             "lifestyle_categories": {
-                "pet": 1
+                "social": 2
             },
             "activity_level": 4.4,
             "sophistication_score": 0
         },
         "composition": {
-            "symmetry_score": 0.9310463606277473,
-            "balance_score": 0.9877638100067531,
+            "symmetry_score": 0.9158348333708866,
+            "balance_score": 0.9481592014406083,
             "rule_of_thirds_score": 0.8,
-            "overall_aesthetic_score": 0.9062700568781669
+            "overall_aesthetic_score": 0.8879980116038316
         },
         "sentiment": {
             "overall_mood": "positive",
@@ -164,7 +156,7 @@
                 "scene_influence": 0
             }
         },
-        "image_path": "data/uploads\\cat-5183427_1280.jpg",
+        "image_path": "data/uploads\\istockphoto-1368004438-612x612.jpg",
         "image_index": 1
     }
 ]

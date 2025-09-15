@@ -19,3 +19,6 @@ facenet-pytorch
 timm
 google-generativeai
 python-dotenv
+fer
+deepface
+tensorflow

@@ -3,7 +3,8 @@ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 import shutil
 import os
-from typing import List
+import numpy as np
+from typing import List, Dict, Any
 from src.visual_persona_generator import VisualPersonaGenerator
 from src.pdf_report_generator import PDFReportGenerator
 import logging
@@ -16,6 +17,24 @@ load_dotenv()
 log_level = os.getenv('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level))
 logger = logging.getLogger(__name__)
+
+def convert_numpy_types(obj: Any) -> Any:
+    """
+    Recursively convert numpy types to native Python types for JSON serialization.
+    """
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_numpy_types(item) for item in obj)
+    return obj
 
 app = FastAPI(title="Enhanced Visual Persona Generator", description="AI-powered image analysis with GPU acceleration and Gemini integration")
 
@@ -71,12 +90,21 @@ async def upload_images(files: List[UploadFile] = File(...)):
     try:
         results = generator.analyze_batch(uploaded_paths)
         report_path = generator.generate_report(results)
+        
+        # Convert numpy types to native Python types for JSON serialization
+        serializable_results = convert_numpy_types(results)
+        
         # Cleanup
         generator.cleanup(uploaded_paths)
-        return JSONResponse(content={"message": "Analysis complete", "results": results, "report_path": report_path})
+        return JSONResponse(content={
+            "message": "Analysis complete", 
+            "results": serializable_results, 
+            "report_path": report_path
+        })
     except Exception as e:
         # Cleanup on error
         generator.cleanup(uploaded_paths)
+        logger.error(f"Analysis error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-pdf")
